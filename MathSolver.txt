@@ -1,0 +1,545 @@
+class MathSolver:
+    """Core mathematical problem solver with specialized handlers"""
+    def __init__(self):
+        self.sympy_engine = None
+        self.performance_tracker = PerformanceTracker()
+        self._initialize_components()
+        logger.info("Math Solver initialized")
+
+    def _initialize_components(self):
+        """Initialize solver components"""
+        self._setup_sympy()
+        self._setup_handlers()
+        self._setup_fallbacks()
+
+    def _setup_sympy(self):
+        """Setup SymPy engine and common symbols"""
+        try:
+            self.sympy_engine = sp
+            # Define common variables
+            self.x, self.y, self.z = sp.symbols('x y z')
+            self.n, self.m, self.k = sp.symbols('n m k')
+            self.a, self.b, self.c = sp.symbols('a b c')
+            logger.info("SymPy engine initialized")
+        except Exception as e:
+            logger.error(f"SymPy setup error: {str(e)}")
+            raise
+
+    def _solve_equation(self, text: str, structure: Dict) -> int:
+        """Solve single equation"""
+        try:
+            eq_matches = re.finditer(r'([^=]+)\s*=\s*([^=]+)', text)
+            for match in eq_matches:
+                left = sp.sympify(match.group(1))
+                right = sp.sympify(match.group(2))
+                eq = sp.Eq(left, right)
+                solution = sp.solve(eq, self.x)
+                if solution:
+                    return int(solution[0]) % 1000
+            return 0
+        except Exception as e:
+            logger.error(f"Equation solving error: {str(e)}")
+            return 0
+
+    def _solve_polynomial(self, text: str, structure: Dict) -> int:
+        """Solve polynomial problems"""
+        try:
+            poly = sp.Poly(text, self.x)
+            degree = poly.degree()
+            coeffs = poly.all_coeffs()
+            return int(abs(coeffs[0])) % 1000  # Return leading coefficient
+        except Exception as e:
+            logger.error(f"Polynomial solving error: {str(e)}")
+            return 0
+
+    def _solve_system(self, text: str, structure: Dict) -> int:
+        """Solve system of equations"""
+        try:
+            equations = []
+            variables = []
+            eq_matches = re.finditer(r'([^=]+)\s*=\s*([^=]+)', text)
+            for match in eq_matches:
+                left = sp.sympify(match.group(1))
+                right = sp.sympify(match.group(2))
+                equations.append(sp.Eq(left, right))
+                variables.extend([str(v) for v in left.free_symbols | right.free_symbols])
+            
+            if equations:
+                variables = list(set(variables))
+                solution = sp.solve(equations, variables)
+                if solution:
+                    # Return sum of solutions modulo 1000
+                    return sum(abs(int(val)) for val in solution.values()) % 1000
+            return 0
+        except Exception as e:
+            logger.error(f"System solving error: {str(e)}")
+            return 0
+
+    def _solve_inequality(self, text: str, structure: Dict) -> int:
+        """Solve inequality problems"""
+        try:
+            ineq_matches = re.finditer(r'([^<>≤≥]+)\s*([<>≤≥])\s*([^<>≤≥]+)', text)
+            for match in ineq_matches:
+                left = sp.sympify(match.group(1))
+                op = match.group(2)
+                right = sp.sympify(match.group(3))
+                
+                if op in ['<', '≤']:
+                    solution = sp.solve(left < right, self.x)
+                else:
+                    solution = sp.solve(left > right, self.x)
+                    
+                if solution:
+                    return int(abs(solution.start)) % 1000
+            return 0
+        except Exception as e:
+            logger.error(f"Inequality solving error: {str(e)}")
+            return 0
+
+    def _solve_triangle(self, text: str, structure: Dict) -> int:
+        """Solve triangle problems"""
+        try:
+            # Extract sides and angles
+            sides = {s: float(v) for s, v in re.findall(r'side\s+(\w)\s*=\s*(\d+(?:\.\d+)?)', text)}
+            angles = {a: float(v) for a, v in re.findall(r'angle\s+(\w)\s*=\s*(\d+(?:\.\d+)?)', text)}
+            
+            if len(sides) >= 2 and len(angles) >= 1:
+                # Use law of sines/cosines
+                return int(self._solve_triangle_with_sides_angles(sides, angles))
+            elif len(angles) == 3:
+                # Use angle properties
+                return int(max(angles.values()))
+            elif len(sides) == 3:
+                # Use side properties
+                return int(max(sides.values()))
+            return 0
+        except Exception as e:
+            logger.error(f"Triangle solving error: {str(e)}")
+            return 0
+
+    def _solve_circle(self, text: str, structure: Dict) -> int:
+        """Solve circle problems"""
+        try:
+            # Extract radius/diameter
+            radius_match = re.search(r'radius\s*=\s*(\d+(?:\.\d+)?)', text)
+            if radius_match:
+                radius = float(radius_match.group(1))
+                if 'area' in text.lower():
+                    return int(3.14159 * radius * radius) % 1000
+                else:
+                    return int(2 * 3.14159 * radius) % 1000
+            return 0
+        except Exception as e:
+            logger.error(f"Circle solving error: {str(e)}")
+            return 0
+
+    def _solve_polygon(self, text: str, structure: Dict) -> int:
+        """Solve polygon problems"""
+        try:
+            # Extract number of sides
+            sides_match = re.search(r'(\d+)\s*sides?', text)
+            if sides_match:
+                n = int(sides_match.group(1))
+                if 'diagonal' in text.lower():
+                    return int(n * (n - 3) / 2) % 1000  # Number of diagonals
+                else:
+                    return int((n - 2) * 180) % 1000  # Sum of interior angles
+            return 0
+        except Exception as e:
+            logger.error(f"Polygon solving error: {str(e)}")
+            return 0
+
+    def _solve_angle_problem(self, text: str, structure: Dict) -> int:
+        """Solve angle problems"""
+        try:
+            angles = [float(a) for a in re.findall(r'(\d+)°', text)]
+            if angles:
+                if len(angles) == 1:
+                    return int(angles[0]) % 1000
+                else:
+                    return int(sum(angles)) % 1000
+            return 0
+        except Exception as e:
+            logger.error(f"Angle solving error: {str(e)}")
+            return 0
+
+    def _solve_prime_problem(self, text: str, structure: Dict) -> int:
+        """Solve prime number problems"""
+        try:
+            numbers = [int(n) for n in re.findall(r'\d+', text)]
+            if 'count' in text.lower() or 'how many' in text.lower():
+                # Count primes up to max number
+                return sum(1 for n in range(2, max(numbers) + 1) if self._is_prime(n)) % 1000
+            elif numbers:
+                # Return largest prime factor
+                return max(self._prime_factors(max(numbers))) % 1000
+            return 0
+        except Exception as e:
+            logger.error(f"Prime problem solving error: {str(e)}")
+            return 0
+
+    def _solve_modulo_problem(self, text: str, structure: Dict) -> int:
+        """Solve modulo problems"""
+        try:
+            numbers = [int(n) for n in re.findall(r'\d+', text)]
+            if len(numbers) >= 2:
+                return numbers[0] % numbers[1]
+            return 0
+        except Exception as e:
+            logger.error(f"Modulo solving error: {str(e)}")
+            return 0
+
+    def _solve_divisor_problem(self, text: str, structure: Dict) -> int:
+        """Solve divisor problems"""
+        try:
+            numbers = [int(n) for n in re.findall(r'\d+', text)]
+            if numbers:
+                n = max(numbers)
+                divisors = [d for d in range(1, n + 1) if n % d == 0]
+                return len(divisors) % 1000
+            return 0
+        except Exception as e:
+            logger.error(f"Divisor solving error: {str(e)}")
+            return 0
+
+    def _solve_gcd_lcm_problem(self, text: str, structure: Dict) -> int:
+        """Solve GCD/LCM problems"""
+        try:
+            numbers = [int(n) for n in re.findall(r'\d+', text)]
+            if len(numbers) >= 2:
+                if 'gcd' in text.lower() or 'greatest common' in text.lower():
+                    result = numbers[0]
+                    for n in numbers[1:]:
+                        result = self._gcd(result, n)
+                    return result % 1000
+                else:  # LCM
+                    result = numbers[0]
+                    for n in numbers[1:]:
+                        result = abs(result * n) // self._gcd(result, n)
+                    return result % 1000
+            return 0
+        except Exception as e:
+            logger.error(f"GCD/LCM solving error: {str(e)}")
+            return 0
+
+    def _solve_permutation(self, text: str, structure: Dict) -> int:
+        """Solve permutation problems"""
+        try:
+            numbers = [int(n) for n in re.findall(r'\d+', text)]
+            if len(numbers) >= 2:
+                n = max(numbers)
+                r = min(numbers)
+                return self._calculate_permutation(n, r) % 1000
+            return 0
+        except Exception as e:
+            logger.error(f"Permutation solving error: {str(e)}")
+            return 0
+
+    def _solve_combination(self, text: str, structure: Dict) -> int:
+        """Solve combination problems"""
+        try:
+            numbers = [int(n) for n in re.findall(r'\d+', text)]
+            if len(numbers) >= 2:
+                n = max(numbers)
+                r = min(numbers)
+                return self._calculate_combination(n, r) % 1000
+            return 0
+        except Exception as e:
+            logger.error(f"Combination solving error: {str(e)}")
+            return 0
+
+    def _solve_probability(self, text: str, structure: Dict) -> int:
+        """Solve probability problems"""
+        try:
+            numbers = [int(n) for n in re.findall(r'\d+', text)]
+            if len(numbers) >= 2:
+                return int(1000 * numbers[0] / numbers[1]) % 1000
+            return 0
+        except Exception as e:
+            logger.error(f"Probability solving error: {str(e)}")
+            return 0
+
+    def _solve_sequence(self, text: str, structure: Dict) -> int:
+        """Solve sequence problems"""
+        try:
+            numbers = [int(n) for n in re.findall(r'\d+', text)]
+            if len(numbers) >= 3:
+                if self._is_arithmetic(numbers):
+                    d = numbers[1] - numbers[0]
+                    return (numbers[-1] + d) % 1000
+                elif self._is_geometric(numbers):
+                    r = numbers[1] / numbers[0]
+                    return int(numbers[-1] * r) % 1000
+            return 0
+        except Exception as e:
+            logger.error(f"Sequence solving error: {str(e)}")
+            return 0
+
+    def _setup_handlers(self):
+        """Setup problem-specific handlers"""
+        self.handlers = {
+            'algebra': {
+                'equation': self._solve_equation,
+                'polynomial': self._solve_polynomial,
+                'system': self._solve_system,
+                'inequality': self._solve_inequality
+            },
+            'geometry': {
+                'triangle': self._solve_triangle,
+                'circle': self._solve_circle,
+                'polygon': self._solve_polygon,
+                'angle': self._solve_angle_problem
+            },
+            'number_theory': {
+                'prime': self._solve_prime_problem,
+                'modulo': self._solve_modulo_problem,
+                'divisor': self._solve_divisor_problem,
+                'gcd_lcm': self._solve_gcd_lcm_problem
+            },
+            'combinatorics': {
+                'permutation': self._solve_permutation,
+                'combination': self._solve_combination,
+                'probability': self._solve_probability,
+                'sequence': self._solve_sequence
+            }
+        }
+
+    # Helper methods
+    def _is_prime(self, n: int) -> bool:
+        """Check if number is prime"""
+        if n < 2:
+            return False
+        for i in range(2, int(n ** 0.5) + 1):
+            if n % i == 0:
+                return False
+        return True
+
+    def _prime_factors(self, n: int) -> List[int]:
+        """Get prime factors of a number"""
+        factors = []
+        d = 2
+        while n > 1:
+            while n % d == 0:
+                factors.append(d)
+                n //= d
+            d += 1
+            if d * d > n:
+                if n > 1:
+                    factors.append(n)
+                break
+        return factors
+
+    def _gcd(self, a: int, b: int) -> int:
+        """Calculate greatest common divisor"""
+        while b:
+            a, b = b, a % b
+        return a
+
+    def _calculate_permutation(self, n: int, r: int) -> int:
+        """Calculate permutation P(n,r)"""
+        try:
+            return int(sp.factorial(n) / sp.factorial(n - r))
+        except:
+            return 0
+
+    def _calculate_combination(self, n: int, r: int) -> int:
+        """Calculate combination C(n,r)"""
+        try:
+            return int(sp.factorial(n) / (sp.factorial(r) * sp.factorial(n - r)))
+        except:
+            return 0
+
+    def _is_arithmetic(self, seq: List[int]) -> bool:
+        """Check if sequence is arithmetic"""
+        if len(seq) < 2:
+            return False
+        d = seq[1] - seq[0]
+        return all(seq[i] - seq[i-1] == d for i in range(2, len(seq)))
+
+    def _is_geometric(self, seq: List[int]) -> bool:
+        """Check if sequence is geometric"""
+        if len(seq) < 2 or 0 in seq:
+            return False
+        r = seq[1] / seq[0]
+        return all(abs(seq[i] / seq[i-1] - r) < 1e-10 for i in range(2, len(seq)))
+
+    def _solve_triangle_with_sides_angles(self, sides: Dict[str, float], angles: Dict[str, float]) -> float:
+        """Solve triangle using sides and angles"""
+        try:
+            if len(sides) >= 2 and len(angles) >= 1:
+                # Use law of sines
+                side_keys = list(sides.keys())
+                angle_keys = list(angles.keys())
+                
+                # Convert angles to radians
+                angles_rad = {k: np.radians(v) for k, v in angles.items()}
+                
+                # Calculate missing side
+                if len(sides) == 2:
+                    a, b = sides.values()
+                    A, B = angles_rad.values()
+                    c = a * np.sin(B) / np.sin(A)
+                    return c
+                
+                # Calculate missing angle
+                if len(angles) == 1:
+                    a, b = sides.values()
+                    A = angles_rad[angle_keys[0]]
+                    B = np.arcsin(b * np.sin(A) / a)
+                    return np.degrees(B)
+            
+            return 0
+        except Exception as e:
+            logger.error(f"Triangle solving error: {str(e)}")
+            return 0
+
+    def _setup_fallbacks(self):
+        """Setup fallback strategies"""
+        self.fallbacks = {
+            'algebra': self._algebraic_fallback,
+            'geometry': self._geometric_fallback,
+            'number_theory': self._number_theory_fallback,
+            'combinatorics': self._combinatorics_fallback
+        }
+
+    def _algebraic_fallback(self, text: str, structure: Dict) -> int:
+        """Fallback for algebraic problems"""
+        try:
+            # Extract all numbers and return largest
+            numbers = [int(n) for n in re.findall(r'\d+', text)]
+            return max(numbers) if numbers else 0
+        except Exception as e:
+            logger.error(f"Algebraic fallback error: {str(e)}")
+            return 0
+
+    def _geometric_fallback(self, text: str, structure: Dict) -> int:
+        """Fallback for geometric problems"""
+        try:
+            # Extract all numbers and return sum modulo 1000
+            numbers = [int(n) for n in re.findall(r'\d+', text)]
+            return sum(numbers) % 1000 if numbers else 0
+        except Exception as e:
+            logger.error(f"Geometric fallback error: {str(e)}")
+            return 0
+
+    def _number_theory_fallback(self, text: str, structure: Dict) -> int:
+        """Fallback for number theory problems"""
+        try:
+            # Extract all numbers and return their GCD
+            numbers = [int(n) for n in re.findall(r'\d+', text)]
+            if len(numbers) >= 2:
+                result = numbers[0]
+                for n in numbers[1:]:
+                    result = self._gcd(result, n)
+                return result
+            return numbers[0] if numbers else 0
+        except Exception as e:
+            logger.error(f"Number theory fallback error: {str(e)}")
+            return 0
+
+    def _combinatorics_fallback(self, text: str, structure: Dict) -> int:
+        """Fallback for combinatorics problems"""
+        try:
+            # Extract all numbers and return product modulo 1000
+            numbers = [int(n) for n in re.findall(r'\d+', text)]
+            result = 1
+            for n in numbers:
+                result = (result * n) % 1000
+            return result
+        except Exception as e:
+            logger.error(f"Combinatorics fallback error: {str(e)}")
+            return 0
+
+    """   
+    def solve(self, parsed_problem: Dict[str, Any], analysis: Dict[str, Any]) -> int:
+        #Main solving method
+        self.performance_tracker.start_operation('solving')
+        try:
+            # Extract problem information
+            problem_text = parsed_problem['processed_text']
+            problem_types = analysis['problem_type']
+            structure = analysis['structure']
+            
+            # Get primary problem type
+            primary_type = max(problem_types.items(), key=lambda x: x[1])[0]
+            
+            # Select appropriate handler
+            result = self._solve_by_type(primary_type, problem_text, structure)
+            
+            # Format and validate result
+            final_answer = self._format_answer(result)
+            
+            self.performance_tracker.end_operation('solving')
+            return final_answer
+            
+        except Exception as e:
+            logger.error(f"Solving error: {str(e)}")
+            self.performance_tracker.end_operation('solving')
+            return self._handle_solving_error(e)
+    """
+    
+    def solve(self, parsed_problem: Dict[str, Any], analysis: Dict[str, Any]) -> int:
+        """Solve mathematical problem with detailed approach tracking"""
+        try:
+            # Record solving approach
+            self.last_approach = {
+                'problem_type': analysis.get('problem_type', {}),
+                'method': 'Determining solution strategy...'
+            }
+            
+            # Get primary problem type
+            problem_type = max(analysis.get('problem_type', {'unknown': 1.0}).items(), key=lambda x: x[1])[0]
+            
+            # Get appropriate handler
+            handler = self.handlers.get(problem_type, {}).get('general', self._solve_general)
+            self.last_approach['selected_handler'] = handler.__name__
+            
+            # Solve problem
+            solution = handler(parsed_problem['processed_text'], analysis)
+            self.last_approach['solution_found'] = bool(solution)
+            
+            return solution
+        except Exception as e:
+            logger.error(f"Solving error: {str(e)}")
+            self.last_approach['error'] = str(e)
+            return 0
+    
+    def _solve_by_type(self, problem_type: str, text: str, structure: Dict) -> int:
+        """Route problem to appropriate solver"""
+        try:
+            # Get handlers for problem type
+            type_handlers = self.handlers.get(problem_type, {})
+            
+            # Try each handler in order
+            for subtype, handler in type_handlers.items():
+                if self._check_subtype(text, subtype):
+                    return handler(text, structure)
+            
+            # If no handler matched, use fallback
+            return self.fallbacks[problem_type](text, structure)
+            
+        except Exception as e:
+            logger.error(f"Type-specific solving error: {str(e)}")
+            return 0
+
+    def _format_answer(self, result: Any) -> int:
+        """Format answer according to competition requirements"""
+        try:
+            # Convert to integer
+            if isinstance(result, (sp.Basic, sp.Expr)):
+                result = float(result.evalf())
+            if isinstance(result, float):
+                result = round(result)
+            result = int(result)
+            
+            # Ensure within 0-999 range
+            return result % 1000
+            
+        except Exception as e:
+            logger.error(f"Answer formatting error: {str(e)}")
+            return 0
+
+    def _handle_solving_error(self, error: Exception) -> int:
+        """Handle solving errors"""
+        logger.error(f"Solving error occurred: {str(error)}")
+        return 0

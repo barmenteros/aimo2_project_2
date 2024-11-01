@@ -1,0 +1,415 @@
+class MathStructureAnalyzer:
+    """Analyzes mathematical structure of problems"""
+    def __init__(self):
+        self._initialize_patterns()
+        self.performance_tracker = PerformanceTracker()
+        logger.info("Math Structure Analyzer initialized")
+
+    def _initialize_patterns(self):
+        """Initialize analysis patterns and classifiers"""
+        self.patterns = {
+            'algebra': {
+                'equation': r'=',
+                'inequality': r'[<>≤≥]',
+                'polynomial': r'x\^[2-9]|x\^\{[2-9]\}',
+                'function': r'f\s*\(.*?\)',
+                'system': r'\\begin\{cases\}|\\begin\{array\}'
+            },
+            'geometry': {
+                'triangle': r'\\triangle|triangle',
+                'circle': r'circle|radius|diameter',
+                'angle': r'\\angle|angle|\d+°|\d+\\degree',
+                'polygon': r'polygon|square|rectangle|parallelogram'
+            },
+            'number_theory': {
+                'prime': r'prime|divisor|factor',
+                'modulo': r'modulo|\bmod\b|\%',
+                'gcd': r'gcd|greatest\s+common\s+divisor',
+                'lcm': r'lcm|least\s+common\s+multiple'
+            },
+            'combinatorics': {
+                'permutation': r'permutation|arrangement',
+                'combination': r'combination|choose',
+                'probability': r'probability|chance',
+                'sequence': r'sequence|series|progression'
+            }
+        }
+        
+        self.operation_patterns = {
+            'addition': r'\+',
+            'subtraction': r'-',
+            'multiplication': r'\*|\\times|\\cdot',
+            'division': r'\/|\\div',
+            'exponentiation': r'\^|\*\*',
+            'root': r'\\sqrt',
+            'factorial': r'\!',
+            'summation': r'\\sum',
+            'product': r'\\prod'
+        }
+
+    """
+    def analyze(self, parsed_problem: Dict[str, Any]) -> Dict[str, Any]:
+        #Analyze mathematical structure of problem
+        self.performance_tracker.start_operation('analysis')
+        try:
+            # Extract text from parsed problem
+            text = parsed_problem['processed_text']
+            original = parsed_problem['original_text']
+            components = parsed_problem.get('components', {})
+            
+            # Perform analysis
+            analysis = {
+                'problem_type': self._identify_problem_type(text, components),
+                'complexity': self._estimate_complexity(text, components),
+                'structure': self._analyze_structure(text, components),
+                'operations': self._identify_operations(text),
+                'variables': self._extract_variables(text),
+                'constraints': self._identify_constraints(text),
+                'special_cases': self._identify_special_cases(text)
+            }
+            
+            self.performance_tracker.end_operation('analysis')
+            return analysis
+            
+        except Exception as e:
+            logger.error(f"Analysis error: {str(e)}")
+            self.performance_tracker.end_operation('analysis')
+            return {
+                'problem_type': 'unknown',
+                'complexity': 1,
+                'error': str(e)
+            }
+    """
+        
+    def analyze(self, parsed_problem: Dict[str, Any]) -> Dict[str, Any]:
+        """Analyze mathematical structure of problem"""
+        try:
+            analysis = {
+                'problem_type': self._identify_problem_type(parsed_problem['processed_text']),
+                'complexity': self._estimate_complexity(parsed_problem['processed_text']),
+                'structure': self._analyze_structure(parsed_problem['processed_text'])
+            }
+            # Store last analysis
+            self.last_analysis = analysis
+            return analysis
+        except Exception as e:
+            logger.error(f"Analysis error: {str(e)}")
+            return {
+                'problem_type': {'unknown': 1.0},
+                'complexity': {'score': 1},
+                'structure': {}
+            }
+    
+    def _identify_problem_type(self, text: str, components: Dict) -> Dict[str, float]:
+        """Identify problem type with confidence scores"""
+        try:
+            scores = {
+                'algebra': 0.0,
+                'geometry': 0.0,
+                'number_theory': 0.0,
+                'combinatorics': 0.0
+            }
+            
+            # Check patterns for each type
+            for ptype, patterns in self.patterns.items():
+                type_score = 0
+                total_patterns = len(patterns)
+                
+                for name, pattern in patterns.items():
+                    if re.search(pattern, text, re.IGNORECASE):
+                        type_score += 1
+                
+                scores[ptype] = type_score / total_patterns if total_patterns > 0 else 0
+            
+            # Normalize scores
+            total_score = sum(scores.values()) + 1e-10
+            scores = {k: v/total_score for k, v in scores.items()}
+            
+            return scores
+            
+        except Exception as e:
+            logger.error(f"Problem type identification error: {str(e)}")
+            return {'unknown': 1.0}
+
+    def _estimate_complexity(self, text: str, components: Dict) -> Dict[str, Any]:
+        """Estimate problem complexity"""
+        try:
+            complexity_factors = {
+                'length': len(text) / 500,  # Normalized by typical length
+                'operations': len(self._identify_operations(text)),
+                'variables': len(self._extract_variables(text)),
+                'special_functions': len(re.findall(r'\\[a-zA-Z]+', text)),
+                'nested_structures': text.count('{') - text.count('\\{')
+            }
+            
+            # Calculate weighted complexity score
+            weights = {
+                'length': 0.1,
+                'operations': 0.3,
+                'variables': 0.2,
+                'special_functions': 0.2,
+                'nested_structures': 0.2
+            }
+            
+            total_score = sum(factor * weights[name] 
+                            for name, factor in complexity_factors.items())
+            
+            return {
+                'score': min(max(total_score, 1), 10),  # Scale 1-10
+                'factors': complexity_factors
+            }
+            
+        except Exception as e:
+            logger.error(f"Complexity estimation error: {str(e)}")
+            return {'score': 5, 'factors': {}}
+
+    def _analyze_structure(self, text: str, components: Dict) -> Dict[str, Any]:
+        """Analyze mathematical structure"""
+        try:
+            structure = {
+                'equations': self._analyze_equations(text, components),
+                'geometric_objects': self._analyze_geometric_objects(text, components),
+                'sequences': self._analyze_sequences(text),
+                'functions': self._analyze_functions(text),
+                'constraints': self._analyze_constraints(text)
+            }
+            return structure
+        except Exception as e:
+            logger.error(f"Structure analysis error: {str(e)}")
+            return {}
+
+    def _identify_operations(self, text: str) -> List[Dict[str, Any]]:
+        """Identify mathematical operations"""
+        try:
+            operations = []
+            for op_name, pattern in self.operation_patterns.items():
+                matches = list(re.finditer(pattern, text))
+                if matches:
+                    operations.append({
+                        'type': op_name,
+                        'count': len(matches),
+                        'positions': [m.start() for m in matches]
+                    })
+            return operations
+        except Exception as e:
+            logger.error(f"Operation identification error: {str(e)}")
+            return []
+
+    def _extract_variables(self, text: str) -> List[Dict[str, Any]]:
+        """Extract mathematical variables"""
+        try:
+            # Find single-letter variables
+            variables = set(re.findall(r'(?<![a-zA-Z])[a-zA-Z](?![a-zA-Z])', text))
+            
+            # Find indexed variables (e.g., x_1, a_n)
+            indexed = re.findall(r'([a-zA-Z])_\{?(\w+)\}?', text)
+            
+            var_info = []
+            for var in variables:
+                var_info.append({
+                    'name': var,
+                    'type': 'simple',
+                    'occurrences': len(re.findall(rf'\b{var}\b', text))
+                })
+            
+            for base, index in indexed:
+                var_info.append({
+                    'name': f'{base}_{index}',
+                    'type': 'indexed',
+                    'base': base,
+                    'index': index
+                })
+            
+            return var_info
+        except Exception as e:
+            logger.error(f"Variable extraction error: {str(e)}")
+            return []
+
+    def _identify_constraints(self, text: str) -> List[Dict[str, Any]]:
+        """Identify problem constraints"""
+        try:
+            constraints = []
+            
+            # Range constraints
+            range_matches = re.finditer(r'(\w+)\s*(?:∈|\\in)\s*(\{[^}]+\}|\[[^\]]+\])', text)
+            for match in range_matches:
+                constraints.append({
+                    'type': 'range',
+                    'variable': match.group(1),
+                    'range': match.group(2)
+                })
+            
+            # Inequality constraints
+            ineq_matches = re.finditer(r'(\w+)\s*([<>≤≥])\s*(\d+)', text)
+            for match in ineq_matches:
+                constraints.append({
+                    'type': 'inequality',
+                    'variable': match.group(1),
+                    'operator': match.group(2),
+                    'value': match.group(3)
+                })
+            
+            return constraints
+        except Exception as e:
+            logger.error(f"Constraint identification error: {str(e)}")
+            return []
+
+    def _identify_special_cases(self, text: str) -> List[Dict[str, str]]:
+        """Identify special cases or conditions"""
+        try:
+            special_cases = []
+            
+            # Check for specific conditions
+            if 'if and only if' in text.lower():
+                special_cases.append({
+                    'type': 'condition',
+                    'category': 'iff'
+                })
+            
+            if re.search(r'(exactly|precisely|only)', text, re.IGNORECASE):
+                special_cases.append({
+                    'type': 'condition',
+                    'category': 'exact'
+                })
+            
+            return special_cases
+        except Exception as e:
+            logger.error(f"Special case identification error: {str(e)}")
+            return []
+
+    def _analyze_equations(self, text: str, components: Dict) -> List[Dict[str, Any]]:
+        """Analyze equations in the problem"""
+        try:
+            equations = []
+            eq_matches = re.finditer(r'([^=]+?)\s*=\s*([^=]+)', text)
+            
+            for match in eq_matches:
+                equations.append({
+                    'left_side': match.group(1).strip(),
+                    'right_side': match.group(2).strip(),
+                    'variables': self._extract_variables(match.group(0))
+                })
+            
+            return equations
+        except Exception as e:
+            logger.error(f"Equation analysis error: {str(e)}")
+            return []
+
+    def _analyze_geometric_objects(self, text: str, components: Dict) -> List[Dict[str, Any]]:
+        """Analyze geometric objects"""
+        try:
+            objects = []
+            
+            # Analyze triangles
+            triangles = re.finditer(r'\\triangle\s*([A-Z]{3})', text)
+            for match in triangles:
+                objects.append({
+                    'type': 'triangle',
+                    'vertices': list(match.group(1)),
+                    'angles': self._find_angles(match.group(1), text)
+                })
+            
+            # Analyze circles
+            circles = re.finditer(r'circle\s*(?:with)?\s*radius\s*(\d+)', text, re.IGNORECASE)
+            for match in circles:
+                objects.append({
+                    'type': 'circle',
+                    'radius': int(match.group(1))
+                })
+            
+            return objects
+        except Exception as e:
+            logger.error(f"Geometric object analysis error: {str(e)}")
+            return []
+
+    def _find_angles(self, vertices: str, text: str) -> Dict[str, float]:
+        """Find angles for a given set of vertices"""
+        try:
+            angles = {}
+            for i in range(len(vertices)):
+                angle = vertices[i:] + vertices[:i]
+                angle = angle[:3]
+                match = re.search(rf'\\angle\s*{angle}\s*=\s*(\d+)', text)
+                if match:
+                    angles[angle] = float(match.group(1))
+            return angles
+        except Exception as e:
+            logger.error(f"Angle finding error: {str(e)}")
+            return {}
+
+    def _analyze_sequences(self, text: str) -> List[Dict[str, Any]]:
+        """Analyze sequences in the problem"""
+        try:
+            sequences = []
+            
+            # Find arithmetic sequences
+            arith_matches = re.finditer(r'\{([^}]+)\}', text)
+            for match in arith_matches:
+                seq = match.group(1)
+                if ',' in seq:
+                    terms = [t.strip() for t in seq.split(',')]
+                    sequences.append({
+                        'type': 'sequence',
+                        'terms': terms,
+                        'pattern': self._detect_sequence_pattern(terms)
+                    })
+            
+            return sequences
+        except Exception as e:
+            logger.error(f"Sequence analysis error: {str(e)}")
+            return []
+
+    def _analyze_functions(self, text: str) -> List[Dict[str, Any]]:
+        """Analyze functions in the problem"""
+        try:
+            functions = []
+            
+            # Find function definitions
+            func_matches = re.finditer(r'f\s*\(([^)]+)\)\s*=\s*([^,\.]+)', text)
+            for match in func_matches:
+                functions.append({
+                    'type': 'function',
+                    'variable': match.group(1).strip(),
+                    'expression': match.group(2).strip()
+                })
+            
+            return functions
+        except Exception as e:
+            logger.error(f"Function analysis error: {str(e)}")
+            return []
+
+    def _detect_sequence_pattern(self, terms: List[str]) -> Dict[str, Any]:
+        """Detect pattern in sequence terms"""
+        try:
+            # Convert numeric terms
+            nums = []
+            for term in terms:
+                try:
+                    nums.append(float(term))
+                except:
+                    return {'type': 'unknown'}
+            
+            if len(nums) < 3:
+                return {'type': 'unknown'}
+            
+            # Check arithmetic
+            diffs = [nums[i+1] - nums[i] for i in range(len(nums)-1)]
+            if all(abs(d - diffs[0]) < 1e-10 for d in diffs):
+                return {
+                    'type': 'arithmetic',
+                    'common_difference': diffs[0]
+                }
+            
+            # Check geometric
+            if all(nums[i] != 0 for i in range(len(nums))):
+                ratios = [nums[i+1]/nums[i] for i in range(len(nums)-1)]
+                if all(abs(r - ratios[0]) < 1e-10 for r in ratios):
+                    return {
+                        'type': 'geometric',
+                        'common_ratio': ratios[0]
+                    }
+            
+            return {'type': 'unknown'}
+        except Exception as e:
+            logger.error(f"Sequence pattern detection error: {str(e)}")
+            return {'type': 'unknown'}
