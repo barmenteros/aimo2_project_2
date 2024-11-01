@@ -9,7 +9,7 @@ pip install packaging>=23.1
 pip install numpy>=1.24.3
 pip install pandas>=2.1.1
 pip install torch>=2.1.0
-pip install transformers>=4.34.0
+pip install transformers>=4.37.0
 pip install tqdm>=4.65.0
 pip install bitsandbytes>=0.44.1
 """
@@ -93,7 +93,7 @@ try:
     from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 except ImportError:
     print("Error: Required packages not installed. Please run:")
-    print("pip install numpy>=1.24.3 pandas>=2.1.1 torch>=2.1.0 transformers>=4.34.0")
+    print("pip install numpy>=1.24.3 pandas>=2.1.1 torch>=2.1.0 transformers>=4.37.0")
     sys.exit(1)
 
 # Version validation
@@ -101,7 +101,7 @@ REQUIRED_VERSIONS = {
     "np": "1.24.3",
     "pd": "2.1.1",
     "torch": "2.1.0",
-    "transformers": "4.34.0",
+    "transformers": "4.37.0",
     "bnb": "0.44.1",
 }
 
@@ -300,7 +300,9 @@ class QwenMathBenchmark:
             # Use approximately 80% of available memory
             usable_memory = total_memory * 0.8
             # Adjust based on the model size without quantization
-            estimated_model_size = 14 * 1024 ** 3  # 14GB for 7B model without quantization
+            estimated_model_size = (
+                14 * 1024**3
+            )  # 14GB for 7B model without quantization
             return max(1, int(usable_memory / estimated_model_size))
         except Exception as e:
             logger.warning(f"Error determining batch size: {e}")
@@ -319,17 +321,16 @@ class QwenMathBenchmark:
 
             # Configure model parameters for better GPU utilization
             model_kwargs = {
-                # Changed from 'auto' to 'balanced' to allow better multi-GPU utilization.
-                # 'balanced' distributes the model layers more evenly across GPUs based on their memory capacities, leading to better utilization.
-                "device_map": "balanced",
+                # Changed from 'balanced' to 'auto'. Recommended by the model developers.
+                "device_map": "auto",
                 "trust_remote_code": True,
-                "torch_dtype": torch.float16,
-                # Removed quantization for now because is causing inefficiencies in multi-GPU utilization and slowing down execution.
-                # Uncomment the following lines to enable it.
+                # Changed from 'torch.float16' to 'auto'. Recommended by the model developers.
+                "torch_dtype": "auto",
+                # Quantization disabled. Not recommended by the model developers.
                 # "quantization_config": BitsAndBytesConfig(
                 #    load_in_8bit=True, bnb_4bit_compute_dtype=torch.float16
                 # ),
-                # Excluded 'max_memory' to allow 'device_map' full control. Including 'max_memory' can interfere with device_map functionality
+                # Excluded 'max_memory'. The model developers do not mention it, and it can interfere with 'device_map' functionality.
                 # "max_memory": {
                 #    i: f"{int(torch.cuda.get_device_properties(i).total_memory * 0.8 / 1024**3)}GiB"
                 #    for i in range(torch.cuda.device_count())
@@ -358,7 +359,7 @@ class QwenMathBenchmark:
                 truncation_side="right",  # Added for better batch processing
             )
 
-            # self.model.parallelize() is redundant when using device_map
+            # self.model.parallelize() disabled. The model developers do not mention it, and it can interfere with 'device_map' functionality.
             # Move model to GPU explicitly if needed
             # if hasattr(self.model, "parallelize"):
             #    self.model.parallelize()  # Use model parallelization if available
