@@ -510,39 +510,54 @@ Final answer (0-999): [your answer]"""
     ) -> List[PredictionResult]:
         """Process a batch of problems with optimized GPU usage"""
         try:
-            # Use longer sequence length for better parallelization
+            # Prepare prompts for batch processing
+            prompts = [self.create_cot_prompt(p[1]) for p in problems]
+
+            # Print the input prompts for debugging
+            for i, prompt in enumerate(prompts):
+                logger.info(f"Problem {i+1} Input Prompt:\n{prompt}\n")
+                print(
+                    f"Problem {i+1} Input Prompt:\n{prompt}\n"
+                )  # Ensure output in notebook
+
+            # Tokenize all prompts at once
             inputs = self.tokenizer(
-                [self.create_cot_prompt(p[1]) for p in problems],
+                prompts,
                 padding=True,
                 truncation=True,
                 return_tensors="pt",
                 max_length=768,  # Increased from 512
             ).to(self.device)
 
-            # Use optimized generation settings
+            # Generate all outputs at once
             with torch.no_grad():
-                with torch.amp.autocast(device_type="cuda"):
-                    outputs = self.model.generate(
-                        **inputs,
-                        max_new_tokens=256,
-                        do_sample=True,
-                        temperature=0.1,
-                        num_return_sequences=1,
-                        pad_token_id=self.tokenizer.eos_token_id,
-                        use_cache=True,  # Enable KV-caching
-                        num_beams=1,  # Disable beam search for speed
-                        # If you want to use beam search to potentially improve the quality of the generated outputs at the cost of speed,
-                        # you can set num_beams to a value greater than 1 (e.g., num_beams=3) and keep early_stopping=True.
-                        # Note: This will increase computation time, so adjust according to your performance needs.
-                        # For example, you can set num_beams=3 and early_stopping=False to generate 3 beams without early stopping.
-                        # Removed early_stopping=True
-                    )
+                outputs = self.model.generate(
+                    **inputs,
+                    max_new_tokens=256,
+                    do_sample=True,
+                    temperature=0.1,
+                    num_return_sequences=1,
+                    pad_token_id=self.tokenizer.eos_token_id,
+                    use_cache=True,  # Enable KV-caching
+                    num_beams=1,  # Disable beam search for speed
+                    # If you want to use beam search to potentially improve the quality of the generated outputs at the cost of speed,
+                    # you can set num_beams to a value greater than 1 (e.g., num_beams=3) and keep early_stopping=True.
+                    # Note: This will increase computation time, so adjust according to your performance needs.
+                    # For example, you can set num_beams=3 and early_stopping=False to generate 3 beams without early stopping.
+                    # Removed early_stopping=True
+                )
 
-            # Process outputs in parallel where possible
+            # Process outputs
             results = []
             for (problem_id, problem, actual_answer), output in zip(problems, outputs):
                 model_output = self.tokenizer.decode(output, skip_special_tokens=True)
                 parsed_answer = self.extract_answer(model_output)
+
+                # Print the model's output for debugging
+                logger.info(f"Problem {problem_id} Model Output:\n{model_output}\n")
+                print(
+                    f"Problem {problem_id} Model Output:\n{model_output}\n"
+                )  # Ensure output in notebook
 
                 results.append(
                     PredictionResult(
@@ -552,7 +567,7 @@ Final answer (0-999): [your answer]"""
                         parsed_answer=parsed_answer,
                         actual_answer=actual_answer,
                         is_correct=(parsed_answer == actual_answer),
-                        computation_time=0,
+                        computation_time=0,  # Will be updated later
                         status=(
                             "success"
                             if parsed_answer is not None
@@ -589,18 +604,22 @@ Final answer (0-999): [your answer]"""
             total_problems = len(df)
             logger.info(f"Loaded {total_problems} problems")
 
+            # Process only the first 2 problems for testing
+            df = df.head(2)
+            logger.info("Processing only the first 2 problems for testing")
+
             # Convert to list of tuples for easier batch processing
             problems = list(df.itertuples(index=False, name=None))
 
             # Initialize progress tracking
             start_time = time.time()
-            total_batches = (total_problems + self.batch_size - 1) // self.batch_size
+            total_batches = (len(problems) + self.batch_size - 1) // self.batch_size
 
             logger.info(
                 f"Starting benchmark with {total_batches} batches (batch_size={self.batch_size})"
             )
 
-            with tqdm(total=total_problems, desc="Processing Problems") as pbar:
+            with tqdm(total=len(problems), desc="Processing Problems") as pbar:
                 for i in range(0, len(problems), self.batch_size):
                     batch = problems[i : i + self.batch_size]
                     batch_start = time.time()
@@ -664,7 +683,7 @@ Final answer (0-999): [your answer]"""
             total_time = time.time() - start_time
             logger.info("\nBenchmark Complete!")
             logger.info(f"Total time: {total_time:.2f}s")
-            logger.info(f"Average time per problem: {total_time/total_problems:.2f}s")
+            logger.info(f"Average time per problem: {total_time/len(problems):.2f}s")
 
             if self.results:
                 save_success = self.save_results()
