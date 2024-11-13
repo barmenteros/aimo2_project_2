@@ -200,72 +200,21 @@ class PythonREPL:
                 return False, combined_output
 
 
-"""
-Sampling Parameters History
--------------------------
-This section maintains a record of all sampling parameter configurations tested
-and their impact on the competition score. Each configuration is documented with
-its settings and outcomes to avoid repeating unsuccessful combinations and track
-successful ones.
-
-Format for each entry:
-- date: When the configuration was tested
-- score: Competition score achieved
-- parameters: Complete sampling parameters used
-- notes: Observations about the configuration's performance
-- impact: Whether it improved (+), worsened (-), or had no effect (=) on score
-"""
-
-SAMPLING_PARAMS_HISTORY = {
-    "version_1": {  # Original Implementation
-        "date": "2024-11-10",
-        "score": 6,
-        "parameters": {
-            "temperature": 1.0,
-            "min_p": 0.01,
-            "skip_special_tokens": True,
-            "max_tokens": 2400,
-            "stop": ["```\n"],
-            "include_stop_str_in_output": True
-        },
-        "notes":
-        "Original implementation. Stable performance with good balance of exploration.",
-        "impact": "baseline"
-    },
-    "version_2": {  # First Optimization Attempt
-        "date": "2024-11-11",
-        "score": 5,
-        "parameters": {
-            "temperature": 0.7,
-            "min_p": 0.05,
-            "skip_special_tokens": True,
-            "max_tokens": 2000,
-            "stop": ["```\n"],
-            "include_stop_str_in_output": True,
-            "top_p": 0.9
-        },
-        "notes":
-        "Attempted to optimize for speed with more focused sampling. Resulted in lower score.",
-        "impact": "-"
-    },
-    # Template for future attempts:
-    # "version_X": {
-    #     "date": "YYYY-MM-DD",
-    #     "score": 0,
-    #     "parameters": {
-    #         "parameter1": value1,
-    #         "parameter2": value2,
-    #         ...
-    #     },
-    #     "notes": "Description of changes and observations",
-    #     "impact": "+/-/="
-    # }
-}
-
-# Current configuration (always use the best performing version)
-best_version = "version_1"  # Update this when a better configuration is found
+# Sampling parameters for the VLLM model inference and evaluation (e.g., temperature, min_p, max_tokens, etc.)
 sampling_params = SamplingParams(
-    **SAMPLING_PARAMS_HISTORY[best_version]["parameters"])
+    # The temperature of the sampling distribution. Higher values mean more randomness. Default is 1.0
+    temperature=1.0,
+    # The minimum token probability for nucleus sampling. Default is 0.01
+    min_p=0.01,
+    # Whether to skip special tokens in the output. Default is True
+    skip_special_tokens=True,
+    # Maximum number of tokens to generate. Default is 1024
+    max_tokens=2400,
+    # Stop generation at the end of the code block
+    stop=["```\n"],
+    # Include the stop string in the output. Default is False
+    include_stop_str_in_output=True,
+)
 
 
 # Generate a message using the VLLM model and return the generated message as a string (e.g., "Hello, world!")
