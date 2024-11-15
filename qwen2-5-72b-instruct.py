@@ -1,5 +1,4 @@
 import os  # operating system
-import gc  # garbage collector
 import time
 import warnings
 
@@ -22,18 +21,6 @@ warnings.simplefilter('ignore')
 os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
 # disable tokenizers parallelism to avoid deadlocks with PyTorch tensor parallelism
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
-
-
-# clean memory (RAM and GPU memory) to avoid memory leaks and out-of-memory errors (e.g., due to PyTorch tensor parallelism)
-# and improve performance (e.g., by reducing memory fragmentation) and stability (e.g., by avoiding memory leaks) of the VLLM model
-def clean_memory(deep=False):
-    gc.collect()  # garbage collector (RAM)
-    if deep:
-        # memory allocator (RAM) for PyTorch tensors
-        ctypes.CDLL("libc.so.6").malloc_trim(0)
-    # memory allocator (GPU) for PyTorch tensors
-    torch.cuda.empty_cache()
-
 
 llm_model_pth = '/kaggle/input/qwen2.5/transformers/72b-instruct-awq/1'
 
@@ -481,3 +468,23 @@ else:
     inference_server.run_local_gateway((
         #             '/kaggle/input/ai-mathematical-olympiad-progress-prize-2/test.csv',
         'reference.csv', ))
+"""
+import gc  # garbage collector
+
+# clean memory (RAM and GPU memory) to avoid memory leaks and out-of-memory errors (e.g., due to PyTorch tensor parallelism)
+# and improve performance (e.g., by reducing memory fragmentation) and stability (e.g., by avoiding memory leaks) of the VLLM model
+def clean_memory(deep=False):
+    gc.collect()  # garbage collector (RAM)
+    if deep:
+        # memory allocator (RAM) for PyTorch tensors
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
+    # memory allocator (GPU) for PyTorch tensors
+    torch.cuda.empty_cache()
+
+
+# delete the VLLM model to free up GPU memory
+del llm
+
+# clean memory (RAM and GPU memory) to avoid memory leaks and out-of-memory errors
+clean_memory(deep=True)
+"""
